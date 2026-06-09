@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Faculty Attendance Report - Face Attendance</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+  body { min-height: 100vh; background: #f5f5f7; color: #1d1d1f; padding: 30px; }
+  .header { display: flex; justify-content: space-between; align-items: center; max-width: 1000px; margin: 0 auto 24px; }
+  .header h1 { font-size: 1.4rem; font-weight: 600; }
+  .back-btn { display: inline-block; padding: 8px 16px; background: #f5f5f7; color: #1d1d1f; text-decoration: none; border-radius: 6px; font-size: 13px; border: 1px solid #d2d2d7; }
+  .card { max-width: 1000px; margin: 0 auto; padding: 24px; background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid #e5e5e7; }
+  .stats { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-bottom: 22px; }
+  .stat { background: #fafafa; padding: 14px 24px; border-radius: 8px; min-width: 130px; text-align: center; border: 1px solid #e5e5e7; }
+  .stat-num { font-size: 1.5rem; font-weight: 600; color: #0071e3; }
+  .stat-label { font-size: 12px; color: #6e6e73; margin-top: 2px; text-transform: uppercase; }
+  .filter-row { display: flex; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+  .filter-row input, .filter-row select { padding: 9px 12px; border: 1px solid #d2d2d7; background: #fff; color: #1d1d1f; border-radius: 6px; font-size: 13px; outline: none; }
+  .filter-row button { padding: 9px 16px; background: #0071e3; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; }
+  .export-btn { padding: 8px 16px; background: #34c759; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #e5e5e7; font-size: 14px; }
+  th { color: #6e6e73; font-weight: 500; }
+  tr:hover td { background: #fafafa; }
+  .empty { text-align: center; color: #888; padding: 24px; }
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>Attendance Report - Faculty</h1>
+    <a href="faculty_dashboard.html" class="back-btn">← Back to Dashboard</a>
+  </div>
+
+  <div class="card">
+    <div class="stats">
+      <div class="stat"><div class="stat-num" id="totalRecords">0</div><div class="stat-label">Total Records</div></div>
+      <div class="stat"><div class="stat-num" id="todayRecords">0</div><div class="stat-label">Today</div></div>
+    </div>
+
+    <div class="filter-row">
+      <input type="date" id="dateFilter" title="Filter by date">
+      <button onclick="filterRecords()">Filter</button>
+      <button class="export-btn" onclick="exportCSV()">Export CSV</button>
+    </div>
+
+    <div style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>Student</th>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Distance (m)</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="recordsTable">
+          <tr><td colspan="5" class="empty">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDqJZTE8r3S1NUXD77S1NRHBbbvXKDljLo",
+      authDomain: "attendance-demo-demo.firebaseapp.com",
+      projectId: "attendance-demo-demo",
+      storageBucket: "attendance-demo-demo.firebasestorage.app",
+      messagingSenderId: "63825400742",
+      appId: "1:63825400742:web:2f2fd96662f5b2f6b37567",
+      measurementId: "G-B8CWL13PT6"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    const facultyId = localStorage.getItem('facultyId');
+    const facultyName = localStorage.getItem('facultyName');
+    const reportSubjectId = localStorage.getItem('reportSubjectId');
+    if (!facultyId) { window.location.href = 'faculty.html'; }
+
+    let allRecords = [];
+
+async function loadAttendance() {
+       const tbody = document.getElementById('recordsTable');
+       try {
+         let query = db.collection('attendance').where('facultyId', '==', facultyId);
+         if (reportSubjectId) {
+           query = query.where('subjectId', '==', reportSubjectId);
+         }
+         const snapshot = await query.get();
+        allRecords = [];
+        snapshot.forEach(doc => allRecords.push(doc.data()));
+        allRecords.sort((a, b) => (b.timestamp?.toDate?.() || 0) - (a.timestamp?.toDate?.() || 0));
+        updateStats(allRecords);
+        renderTable(allRecords);
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="5" class="empty" style="color:#c0392b;">Error loading records</td></tr>`;
+        console.error(err);
+      }
+    }
+
+    function updateStats(records) {
+      document.getElementById('totalRecords').textContent = records.length;
+      const today = new Date().toLocaleDateString('en-GB');
+      document.getElementById('todayRecords').textContent = records.filter(r => r.date === today).length;
+    }
+
+    function renderTable(records) {
+      const tbody = document.getElementById('recordsTable');
+      if (records.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty">No attendance records found</td></tr>';
+        return;
+      }
+      tbody.innerHTML = '';
+      records.forEach(r => {
+        tbody.innerHTML += `<tr>
+          <td>${r.studentName}</td>
+          <td>${r.date}</td>
+          <td>${r.time}</td>
+          <td>${r.distance ? r.distance.toFixed(1) : '-'}</td>
+          <td><span style="color:#0d7a3a;">Present</span></td>
+        </tr>`;
+      });
+    }
+
+    function filterRecords() {
+      const dateVal = document.getElementById('dateFilter').value;
+      let filtered = [...allRecords];
+      if (dateVal) {
+        const parts = dateVal.split('-');
+        if (parts.length === 3) {
+          const formatted = `${parts[2]}-${parts[1]}-${parts[0]}`;
+          filtered = filtered.filter(r => r.date === formatted);
+        }
+      }
+      renderTable(filtered);
+      updateStats(filtered);
+    }
+
+    function exportCSV() {
+      let filtered = [...allRecords];
+      const dateVal = document.getElementById('dateFilter').value;
+      if (dateVal) {
+        const parts = dateVal.split('-');
+        if (parts.length === 3) {
+          const formatted = `${parts[2]}-${parts[1]}-${parts[0]}`;
+          filtered = filtered.filter(r => r.date === formatted);
+        }
+      }
+      let csv = 'Student,Date,Time,Distance,Status\n';
+      filtered.forEach(r => csv += `${r.studentName},${r.date},${r.time},${r.distance || '-'},Present\n`);
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `faculty_attendance_${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    loadAttendance();
+  </script>
+</body>
+</html>

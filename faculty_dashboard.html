@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Faculty Dashboard - Face Attendance</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+  body { min-height: 100vh; background: #f5f5f7; color: #1d1d1f; padding: 24px; }
+  .header { display: flex; justify-content: space-between; align-items: center; max-width: 900px; margin: 0 auto 24px; }
+  .header h1 { font-size: 1.4rem; font-weight: 600; }
+  .logout-btn { padding: 8px 16px; background: #f5f5f7; color: #1d1d1f; border: 1px solid #d2d2d7; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; }
+  .card { max-width: 900px; margin: 0 auto 20px; padding: 24px; background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid #e5e5e7; }
+  .card h2 { margin-bottom: 14px; color: #1d1d1f; font-size: 1.1rem; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #e5e5e7; font-size: 14px; }
+  th { color: #6e6e73; font-weight: 500; }
+  tr:hover td { background: #fafafa; }
+  .btn { padding: 8px 16px; font-size: 13px; font-weight: 500; border: none; border-radius: 6px; cursor: pointer; transition: 0.2s; }
+  .start-btn { background: #34c759; color: #fff; }
+  .start-btn:hover { background: #30b350; }
+  .stop-btn { background: #ff3b30; color: #fff; }
+  .stop-btn:hover { background: #ff2d20; }
+  .view-btn { background: #0071e3; color: #fff; }
+  .view-btn:hover { background: #0077ed; }
+  .select { padding: 8px 12px; border: 1px solid #d2d2d7; background: #fff; border-radius: 6px; font-size: 14px; outline: none; margin-right: 10px; }
+  .msg { padding: 10px; border-radius: 6px; margin-top: 10px; font-size: 14px; display: none; }
+  .success { background: #e6f9ef; color: #0d7a3a; }
+  .error { background: #ffe6e6; color: #c0392b; }
+  .info { background: #e6f0fa; color: #0058b3; }
+  .session-info { background: #fafafa; padding: 12px; border-radius: 8px; margin-bottom: 12px; font-size: 13px; }
+  .session-info span { display: inline-block; margin-right: 20px; }
+    .duration-select { padding: 6px 10px; border: 1px solid #d2d2d7; background: #fff; border-radius: 6px; font-size: 13px; }
+    .analytics-select { padding: 8px 12px; border: 1px solid #d2d2d7; background: #fff; border-radius: 6px; font-size: 14px; outline: none; width: 100%; max-width: 300px; }
+    .att-matrix { overflow-x: auto; margin-top: 12px; }
+    .att-matrix table { min-width: 600px; }
+    .att-matrix th, .att-matrix td { text-align: center; padding: 8px; font-size: 13px; }
+    .att-matrix th:first-child, .att-matrix td:first-child { text-align: left; position: sticky; left: 0; background: #fff; z-index: 1; }
+    .present { color: #0d7a3a; font-weight: 600; }
+    .absent { color: #c0392b; }
+    .percent { font-weight: 600; }
+    .percent.high { color: #0d7a3a; }
+    .percent.low { color: #c0392b; }
+    .empty { text-align: center; color: #888; padding: 16px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1 id="welcome">Welcome</h1>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+  </div>
+
+  <div class="card">
+    <h2>My Subjects</h2>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr><th>Subject</th><th>Code</th><th>Students</th><th>Action</th></tr>
+        </thead>
+        <tbody id="subjectsTable">
+          <tr><td colspan="4" style="color:#888;">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Subject Attendance Analytics</h2>
+    <select id="analyticsSubject" class="analytics-select" onchange="loadAnalytics()">
+      <option value="">Select Subject</option>
+    </select>
+    <div id="analyticsContainer" style="margin-top:14px;">
+      <p class="empty">Select a subject to view attendance</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Active Sessions</h2>
+    <div id="activeSessions"></div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDqJZTE8r3S1NUXD77S1NRHBbbvXKDljLo",
+      authDomain: "attendance-demo-demo.firebaseapp.com",
+      projectId: "attendance-demo-demo",
+      storageBucket: "attendance-demo-demo.firebasestorage.app",
+      messagingSenderId: "63825400742",
+      appId: "1:63825400742:web:2f2fd96662f5b2f6b37567",
+      measurementId: "G-B8CWL13PT6"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    const facultyId = localStorage.getItem('facultyId');
+    const facultyName = localStorage.getItem('facultyName');
+    if (!facultyId) { window.location.href = 'faculty.html'; }
+
+    document.getElementById('welcome').textContent = `Welcome, ${facultyName}`;
+
+    async function loadSubjects() {
+      const tbody = document.getElementById('subjectsTable');
+      try {
+        const snapshot = await db.collection('subjects').where('facultyId', '==', facultyId).get();
+        if (snapshot.empty) {
+          tbody.innerHTML = '<tr><td colspan="4" style="color:#888;">No subjects assigned</td></tr>';
+          return;
+        }
+        tbody.innerHTML = '';
+        for (const doc of snapshot.docs) {
+          const s = doc.data();
+          const sessionSnapshot = await db.collection('attendanceSessions').where('subjectId', '==', doc.id).where('active', '==', true).get();
+          const hasActive = !sessionSnapshot.empty;
+          const btn = hasActive 
+            ? `<button class="btn stop-btn" onclick="stopAttendance('${doc.id}')">Stop Attendance</button>` 
+            : `<select class="duration-select" id="duration-${doc.id}"><option value="5">5 Min</option><option value="10" selected>10 Min</option><option value="15">15 Min</option></select>
+               <button class="btn start-btn" onclick="startAttendance('${doc.id}', '${s.subjectName}')">Start Attendance</button>`;
+          tbody.innerHTML += `<tr>
+            <td>${s.subjectName}</td>
+            <td>${s.subjectCode}</td>
+            <td>${s.studentIds?.length || 0} students</td>
+            <td>${btn}</td>
+          </tr>`;
+        }
+        document.getElementById('analyticsSubject').innerHTML = '';
+        for (const doc of snapshot.docs) {
+          document.getElementById('analyticsSubject').innerHTML += `<option value="${doc.id}">${doc.data().subjectName}</option>`;
+        }
+      } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="4" style="color:#e74c3c;">Error loading subjects</td></tr>';
+        console.error(err);
+      }
+    }
+
+    async function loadActiveSessions() {
+      const container = document.getElementById('activeSessions');
+      try {
+        const snapshot = await db.collection('attendanceSessions').where('facultyId', '==', facultyId).where('active', '==', true).get();
+        if (snapshot.empty) {
+          container.innerHTML = '<p style="color:#888;">No active sessions</p>';
+          return;
+        }
+        container.innerHTML = '';
+        for (const doc of snapshot.docs) {
+          const s = doc.data();
+          const subjectDoc = await db.collection('subjects').doc(s.subjectId).get();
+          const subject = subjectDoc.data();
+          container.innerHTML += `
+            <div class="session-info">
+              <span><strong>${subject?.subjectName || 'Unknown'}</strong></span>
+              <span>Started: ${s.startTime}</span>
+              <span>Duration: ${s.duration} min</span>
+              <span>Location: ${s.latitude.toFixed(4)}, ${s.longitude.toFixed(4)}</span>
+              <button class="btn view-btn" style="margin-left:20px;" onclick="viewAttendance('${s.subjectId}')">View Attendance</button>
+            </div>`;
+        }
+      } catch (err) {
+        container.innerHTML = '<p style="color:#e74c3c;">Error loading sessions</p>';
+      }
+    }
+
+  async function getNextClassNumber(subjectId) {
+      const snap = await db.collection('attendanceSessions')
+        .where('subjectId', '==', subjectId)
+        .get();
+      const numbers = [];
+      snap.forEach(d => { const n = d.data().classNumber; if (n) numbers.push(n); });
+      return numbers.length > 0 ? Math.max(...numbers) + 1 : 1;
+    }
+
+    async function startAttendance(subjectId, subjectName) {
+       const duration = document.getElementById(`duration-${subjectId}`).value;
+       const statusMsg = document.createElement('div');
+       statusMsg.className = 'msg info';
+       statusMsg.textContent = 'Capturing location...';
+       statusMsg.style.display = 'block';
+       event.target.closest('td').appendChild(statusMsg);
+
+       if (!navigator.geolocation) {
+         statusMsg.className = 'msg error';
+         statusMsg.textContent = 'Geolocation not supported';
+         return;
+       }
+
+       navigator.geolocation.getCurrentPosition(async (pos) => {
+         const now = new Date();
+         const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+         const dateStr = now.toLocaleDateString('en-GB');
+         try {
+           const classNumber = await getNextClassNumber(subjectId);
+           await db.collection('attendanceSessions').add({
+             subjectId,
+             facultyId,
+             facultyName,
+             active: true,
+             latitude: pos.coords.latitude,
+             longitude: pos.coords.longitude,
+             startTime: timeStr,
+             classNumber,
+             date: dateStr,
+             duration: parseInt(duration),
+             createdAt: firebase.firestore.FieldValue.serverTimestamp()
+           });
+           statusMsg.className = 'msg success';
+           statusMsg.textContent = `Attendance started! Class ${classNumber}`;
+           setTimeout(() => { loadSubjects(); loadActiveSessions(); }, 1000);
+         } catch (err) {
+           statusMsg.className = 'msg error';
+           statusMsg.textContent = 'Error: ' + err.message;
+         }
+       }, (err) => {
+         statusMsg.className = 'msg error';
+         statusMsg.textContent = 'Location access denied';
+       }, { enableHighAccuracy: true, timeout: 10000 });
+     }
+
+    async function stopAttendance(subjectId) {
+      const statusMsg = document.createElement('div');
+      statusMsg.className = 'msg info';
+      statusMsg.textContent = 'Stopping...';
+      statusMsg.style.display = 'block';
+      event.target.closest('tr').cells[3].appendChild(statusMsg);
+
+      try {
+        const snapshot = await db.collection('attendanceSessions').where('subjectId', '==', subjectId).where('active', '==', true).get();
+        for (const doc of snapshot.docs) {
+          await db.collection('attendanceSessions').doc(doc.id).update({ active: false });
+        }
+        statusMsg.className = 'msg success';
+        statusMsg.textContent = 'Stopped!';
+        loadSubjects();
+        loadActiveSessions();
+      } catch (err) {
+        statusMsg.className = 'msg error';
+        statusMsg.textContent = 'Error: ' + err.message;
+      }
+    }
+
+    async function loadAnalytics() {
+      const subjectId = document.getElementById('analyticsSubject').value;
+      const container = document.getElementById('analyticsContainer');
+      if (!subjectId) {
+        container.innerHTML = '<p class="empty">Select a subject to view attendance</p>';
+        return;
+      }
+      try {
+        const [subjectSnap, studentsSnap, sessionsSnap, attendanceSnap] = await Promise.all([
+          db.collection('subjects').doc(subjectId).get(),
+          db.collection('students').get(),
+          db.collection('attendanceSessions').where('subjectId', '==', subjectId).where('active', '==', false).get(),
+          db.collection('attendance').where('subjectId', '==', subjectId).get()
+        ]);
+        const subject = subjectSnap.data();
+        const studentIds = subject?.studentIds || [];
+        const students = [];
+        studentsSnap.forEach(doc => {
+          if (studentIds.includes(doc.id)) {
+            students.push({ id: doc.id, name: doc.data().name });
+          }
+        });
+        const sessions = [];
+        sessionsSnap.forEach(doc => {
+          sessions.push({ id: doc.id, ...doc.data() });
+        });
+        sessions.sort((a, b) => (a.classNumber || 0) - (b.classNumber || 0));
+        if (sessions.length === 0) {
+          container.innerHTML = '<p class="empty">No attendance sessions yet. Start a session first.</p>';
+          return;
+        }
+        const attendanceBySession = {};
+        attendanceSnap.forEach(doc => {
+          const a = doc.data();
+          const sid = a.sessionId;
+          if (!attendanceBySession[sid]) attendanceBySession[sid] = {};
+          attendanceBySession[sid][a.studentId] = true;
+        });
+        let html = '<div class="att-matrix"><table><thead><tr><th>Student</th>';
+        sessions.forEach(s => {
+          html += `<th>Class ${s.classNumber}<br><span style="font-size:11px;color:#6e6e73;font-weight:400;">${s.date || ''}</span></th>`;
+        });
+        html += '<th>Attendance %</th></tr></thead><tbody>';
+        students.forEach(stu => {
+          html += `<tr><td>${stu.name}</td>`;
+          let presentCount = 0;
+          sessions.forEach(s => {
+            const isPresent = attendanceBySession[s.id]?.[stu.id];
+            if (isPresent) presentCount++;
+            const displayClass = isPresent ? 'present' : 'absent';
+            html += `<td class="${displayClass}">${isPresent ? 'P' : 'A'}</td>`;
+          });
+          const pct = sessions.length > 0 ? Math.round((presentCount / sessions.length) * 100) : 0;
+          const pctClass = pct >= 75 ? 'high' : 'low';
+          html += `<td class="percent ${pctClass}">${pct}%</td></tr>`;
+        });
+        html += '</tbody></table></div>';
+        html += `<p style="margin-top:10px;font-size:12px;color:#6e6e73;">Total sessions: ${sessions.length} | Students: ${students.length}</p>`;
+        container.innerHTML = html;
+      } catch (err) {
+        container.innerHTML = `<p class="empty" style="color:#c0392b;">Error loading: ${err.message}</p>`;
+        console.error(err);
+      }
+    }
+
+    async function viewAttendance(subjectId) {
+      localStorage.setItem('reportSubjectId', subjectId);
+      window.location.href = 'faculty_report.html';
+    }
+
+    function logout() {
+      localStorage.clear();
+      window.location.href = 'index.html';
+    }
+
+    loadSubjects();
+    loadActiveSessions();
+  </script>
+</body>
+</html>

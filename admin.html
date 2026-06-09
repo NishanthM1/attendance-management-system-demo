@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Admin Dashboard - Face Attendance</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+  body { min-height: 100vh; background: #f5f5f7; color: #1d1d1f; padding: 30px; }
+  .header { text-align: center; margin-bottom: 30px; }
+  .header h1 { font-size: 1.75rem; font-weight: 600; }
+  .back-btn { display: inline-block; padding: 8px 18px; background: #f5f5f7; color: #1d1d1f; text-decoration: none; border-radius: 8px; margin-bottom: 15px; font-size: 14px; border: 1px solid #d2d2d7; }
+  .card { max-width: 800px; margin: 0 auto 24px; padding: 28px; background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid #e5e5e7; }
+  .card h2 { margin-bottom: 18px; color: #1d1d1f; font-size: 1.15rem; font-weight: 600; }
+  form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  form input, form select { padding: 11px 14px; border: 1px solid #d2d2d7; background: #fff; color: #1d1d1f; border-radius: 8px; font-size: 14px; outline: none; }
+  form input:focus, form select:focus { border-color: #0071e3; }
+  .full { grid-column: 1 / -1; }
+  .submit-btn { padding: 12px 24px; background: #0071e3; color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 500; cursor: pointer; transition: 0.2s; }
+  .submit-btn:hover { background: #0077ed; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #e5e5e7; font-size: 14px; }
+  th { color: #6e6e73; font-weight: 500; }
+  tr:hover td { background: #fafafa; }
+  .msg { padding: 10px; border-radius: 6px; margin-top: 10px; font-size: 14px; display: none; }
+  .success { background: #e6f9ef; color: #0d7a3a; }
+  .error { background: #ffe6e6; color: #c0392b; }
+  .checkbox-group { max-height: 150px; overflow-y: auto; border: 1px solid #d2d2d7; border-radius: 8px; padding: 12px; background: #fafafa; }
+  .checkbox-item { display: flex; align-items: center; margin-bottom: 8px; }
+  .checkbox-item input { width: auto; margin-right: 8px; }
+  .checkbox-item label { font-size: 13px; color: #1d1d1f; }
+  .stats { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-bottom: 22px; }
+  .stat { background: #fafafa; padding: 14px 24px; border-radius: 8px; min-width: 130px; text-align: center; border: 1px solid #e5e5e7; }
+  .stat-num { font-size: 1.5rem; font-weight: 600; color: #0071e3; }
+  .stat-label { font-size: 12px; color: #6e6e73; margin-top: 2px; text-transform: uppercase; }
+  .dept-item { border: 1px solid #e5e5e7; border-radius: 8px; margin-bottom: 10px; background: #fff; overflow: hidden; }
+  .dept-header { padding: 12px 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: #fafafa; user-select: none; }
+  .dept-header strong { font-size: 14px; color: #1d1d1f; }
+  .dept-header .badges { display: flex; gap: 8px; }
+  .badge { font-size: 12px; padding: 2px 10px; border-radius: 12px; font-weight: 500; background: #e6f0fa; color: #0058b3; }
+  .badge.green { background: #e6f9ef; color: #0d7a3a; }
+  .badge.purple { background: #f0e6fa; color: #6b3fa0; }
+  .dept-body { display: none; padding: 14px 16px; border-top: 1px solid #e5e5e7; }
+  .dept-body.open { display: block; }
+  .dept-body table { margin-top: 0; }
+  .empty { text-align: center; color: #888; padding: 10px; font-size: 13px; }
+  .filter-row { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  .filter-row select { padding: 9px 12px; border: 1px solid #d2d2d7; background: #fff; color: #1d1d1f; border-radius: 6px; font-size: 13px; outline: none; min-width: 200px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+  .tab { padding: 8px 16px; border: 1px solid #d2d2d7; background: #fafafa; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; color: #6e6e73; }
+  .tab.active { background: #0071e3; color: #fff; border-color: #0071e3; }
+  .settings-input { padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px; width: 100px; }
+</style>
+</head>
+<body>
+  <a href="index.html" class="back-btn">← Back</a>
+  <div class="header">
+    <h1>Admin Dashboard</h1>
+    <a href="report.html" style="padding:8px 18px; background:#0071e3; color:#fff; text-decoration:none; border-radius:6px; font-size:13px; font-weight:500;">📊 View Attendance Report</a>
+  </div>
+
+  <div class="card">
+    <h2>🏛️ Manage Departments</h2>
+    <form id="addDepartmentForm" style="margin-bottom:18px;">
+      <input type="text" id="deptName" placeholder="Department Name" required />
+      <button type="submit" class="submit-btn">Add Department</button>
+    </form>
+    <div id="deptAccordion"></div>
+    <div id="deptMsg" class="msg"></div>
+  </div>
+
+  <div class="card">
+    <h2>➕ Add Student</h2>
+    <form id="addStudentForm">
+      <input type="text" id="name" placeholder="Student Name" required />
+      <input type="email" id="email" placeholder="Email" required />
+      <input type="password" id="password" placeholder="Password" required />
+      <select id="studentDept" required>
+        <option value="">Select Department</option>
+      </select>
+      <button type="submit" class="submit-btn full">Add Student</button>
+    </form>
+    <div id="studentMsg" class="msg"></div>
+  </div>
+
+  <div class="card">
+    <h2>➕ Add Faculty</h2>
+    <form id="addFacultyForm">
+      <input type="text" id="facultyName" placeholder="Faculty Name" required />
+      <input type="email" id="facultyEmail" placeholder="Email" required />
+      <input type="password" id="facultyPassword" placeholder="Password" required />
+      <select id="facultyDept" required>
+        <option value="">Select Department</option>
+      </select>
+      <button type="submit" class="submit-btn full">Add Faculty</button>
+    </form>
+    <div id="facultyMsg" class="msg"></div>
+  </div>
+
+  <div class="card">
+    <h2>📚 Create Subject</h2>
+    <form id="addSubjectForm">
+      <input type="text" id="subjectName" placeholder="Subject Name" required />
+      <input type="text" id="subjectCode" placeholder="Subject Code" required />
+      <select id="subjectFaculty" required>
+        <option value="">Select Faculty</option>
+      </select>
+      <select id="subjectDept" required>
+        <option value="">Select Department</option>
+      </select>
+      <button type="submit" class="submit-btn full">Create Subject</button>
+    </form>
+    <div id="subjectMsg" class="msg"></div>
+  </div>
+
+  <div class="card">
+    <h2>👥 Assign Students to Subject</h2>
+    <form id="assignStudentsForm">
+      <select id="assignSubject" onchange="loadAvailableStudents()" required>
+        <option value="">Select Subject</option>
+      </select>
+      <div class="checkbox-group" id="studentCheckboxes">
+        <p style="color:#888;">Select a subject first</p>
+      </div>
+      <button type="submit" class="submit-btn full">Assign Students</button>
+    </form>
+    <div id="assignMsg" class="msg"></div>
+  </div>
+
+  <div class="card">
+    <h2>📊 Quick Stats</h2>
+  <div class="stats">
+    <div class="stat"><div class="stat-num" id="totalStudents">0</div><div class="stat-label">Students</div></div>
+    <div class="stat"><div class="stat-num" id="totalFaculty">0</div><div class="stat-label">Faculty</div></div>
+    <div class="stat"><div class="stat-num" id="totalSubjects">0</div><div class="stat-label">Subjects</div></div>
+    <div class="stat"><div class="stat-num" id="totalDepts">0</div><div class="stat-label">Departments</div></div>
+  </div>
+  </div>
+
+  <div class="card">
+    <h2>⚙️ Settings</h2>
+    <form id="settingsForm" onsubmit="saveSettings(event)">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <label style="font-size:14px;">Distance Threshold (meters):</label>
+        <input type="number" id="distanceThreshold" class="settings-input" min="1" max="1000" required />
+        <button type="submit" class="submit-btn">Save</button>
+      </div>
+    </form>
+    <div id="settingsMsg" class="msg"></div>
+  </div>
+
+  <div class="card">
+    <h2>📋 Department-wise Listings</h2>
+    <div class="filter-row">
+      <select id="filterDept" onchange="renderListing()">
+        <option value="">All Departments</option>
+      </select>
+    </div>
+    <div class="tabs">
+      <div class="tab active" data-tab="students" onclick="switchTab(this)">Students</div>
+      <div class="tab" data-tab="faculty" onclick="switchTab(this)">Faculty</div>
+      <div class="tab" data-tab="subjects" onclick="switchTab(this)">Subjects</div>
+    </div>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead id="listingHead"></thead>
+        <tbody id="listingBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDqJZTE8r3S1NUXD77S1NRHBbbvXKDljLo",
+      authDomain: "attendance-demo-demo.firebaseapp.com",
+      projectId: "attendance-demo-demo",
+      storageBucket: "attendance-demo-demo.firebasestorage.app",
+      messagingSenderId: "63825400742",
+      appId: "1:63825400742:web:2f2fd96662f5b2f6b37567",
+      measurementId: "G-B8CWL13PT6"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    let currentTab = 'students';
+    let deptMap = {};
+
+    function switchTab(tabEl) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      tabEl.classList.add('active');
+      currentTab = tabEl.dataset.tab;
+      renderListing();
+    }
+
+    async function renderListing() {
+      const filterDept = document.getElementById('filterDept').value;
+      const thead = document.getElementById('listingHead');
+      const tbody = document.getElementById('listingBody');
+      tbody.innerHTML = '<tr><td colspan="5" class="empty">Loading...</td></tr>';
+      try {
+        let deptSnap, stuSnap, facSnap, subSnap;
+        if (!filterDept) {
+          [stuSnap, facSnap, subSnap] = await Promise.all([
+            db.collection('students').get(),
+            db.collection('faculty').get(),
+            db.collection('subjects').get()
+          ]);
+        } else {
+          [stuSnap, facSnap, subSnap] = await Promise.all([
+            db.collection('students').where('dept', '==', filterDept).get(),
+            db.collection('faculty').where('department', '==', filterDept).get(),
+            db.collection('subjects').where('departmentId', '==', filterDept).get()
+          ]);
+        }
+        deptSnap = await db.collection('departments').get();
+        deptMap = {};
+        deptSnap.forEach(doc => { deptMap[doc.id] = doc.data().name; });
+        let rows = [];
+        if (currentTab === 'students') {
+          thead.innerHTML = '<tr><th>Name</th><th>Email</th><th>Dept</th><th>Face</th></tr>';
+          stuSnap.forEach(doc => {
+            const s = doc.data();
+            const deptName = deptMap[s.dept] || s.dept || '-';
+            rows.push(`<tr><td>${s.name}</td><td>${s.email}</td><td>${deptName}</td><td>${s.faceRegistered ? 'Yes' : 'No'}</td></tr>`);
+          });
+        } else if (currentTab === 'faculty') {
+          thead.innerHTML = '<tr><th>Name</th><th>Email</th><th>Department</th></tr>';
+          facSnap.forEach(doc => {
+            const f = doc.data();
+            const deptName = deptMap[f.department] || f.department || '-';
+            rows.push(`<tr><td>${f.name}</td><td>${f.email}</td><td>${deptName}</td></tr>`);
+          });
+        } else {
+          thead.innerHTML = '<tr><th>Subject</th><th>Code</th><th>Faculty</th><th>Dept</th><th>Students</th></tr>';
+          const facMap = {};
+          facSnap.forEach(doc => { facMap[doc.id] = doc.data().name; });
+          subSnap.forEach(doc => {
+            const s = doc.data();
+            const facName = facMap[s.facultyId] || '-';
+            const deptName = deptMap[s.departmentId] || s.departmentId || '-';
+            rows.push(`<tr><td>${s.subjectName}</td><td>${s.subjectCode}</td><td>${facName}</td><td>${deptName}</td><td>${(s.studentIds || []).length}</td></tr>`);
+          });
+        }
+        tbody.innerHTML = rows.length === 0 ? '<tr><td colspan="5" class="empty">None</td></tr>' : rows.join('');
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="5" class="empty" style="color:#c0392b;">Error loading</td></tr>`;
+      }
+    }
+
+    async function loadFacultyOptions() {
+      const subjectFaculty = document.getElementById('subjectFaculty');
+      const subjectDept = document.getElementById('subjectDept');
+      const assignSubject = document.getElementById('assignSubject');
+      try {
+        const facultySnap = await db.collection('faculty').orderBy('name').get();
+        facultySnap.forEach(doc => {
+          const f = doc.data();
+          subjectFaculty.innerHTML += `<option value="${doc.id}">${f.name}</option>`;
+        });
+        const subjectSnap = await db.collection('subjects').orderBy('subjectName').get();
+        subjectSnap.forEach(doc => {
+          const s = doc.data();
+          assignSubject.innerHTML += `<option value="${doc.id}">${s.subjectName}</option>`;
+        });
+        const deptSnap = await db.collection('departments').orderBy('name').get();
+        deptSnap.forEach(doc => {
+          const d = doc.data();
+          subjectDept.innerHTML += `<option value="${doc.id}">${d.name}</option>`;
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function loadAvailableStudents() {
+      const subjectId = document.getElementById('assignSubject').value;
+      const container = document.getElementById('studentCheckboxes');
+      if (!subjectId) {
+        container.innerHTML = '<p style="color:#888;">Select a subject first</p>';
+        return;
+      }
+      try {
+        const [studentsSnap, subjectSnap, deptSnap] = await Promise.all([
+          db.collection('students').orderBy('name').get(),
+          db.collection('subjects').doc(subjectId).get(),
+          db.collection('departments').get()
+        ]);
+        const deptMap = {};
+        deptSnap.forEach(doc => { deptMap[doc.id] = doc.data().name; });
+        const assigned = new Set((subjectSnap.data()?.studentIds || []));
+        container.innerHTML = '';
+        studentsSnap.forEach(doc => {
+          const s = doc.data();
+          const checked = assigned.has(doc.id) ? 'checked' : '';
+          const deptName = deptMap[s.dept] || s.dept || '-';
+          container.innerHTML += `<div class="checkbox-item"><input type="checkbox" id="stu-${doc.id}" value="${doc.id}" ${checked}><label for="stu-${doc.id}">${s.name} (${deptName})</label></div>`;
+        });
+      } catch (err) {
+        container.innerHTML = '<p style="color:#e74c3c;">Error loading students</p>';
+      }
+    }
+
+async function loadDepartments() {
+       const studentDept = document.getElementById('studentDept');
+       const facultyDept = document.getElementById('facultyDept');
+       const filterDept = document.getElementById('filterDept');
+       const accordion = document.getElementById('deptAccordion');
+       try {
+         const deptSnap = await db.collection('departments').orderBy('name').get();
+         studentDept.innerHTML = '<option value="">Select Department</option>';
+         facultyDept.innerHTML = '<option value="">Select Department</option>';
+         filterDept.innerHTML = '<option value="">All Departments</option>';
+         const [stuSnap, facSnap, subSnap] = await Promise.all([
+           db.collection('students').get(),
+           db.collection('faculty').get(),
+           db.collection('subjects').get()
+         ]);
+         const deptMap = {};
+         deptSnap.forEach(doc => { deptMap[doc.id] = doc.data().name; });
+         const studentsByDept = {};
+         const facultyByDept = {};
+         const subjectDeptCounts = {};
+         stuSnap.forEach(doc => {
+           const d = doc.data();
+           const k = d.dept || '';
+           studentsByDept[k] = (studentsByDept[k] || []);
+           studentsByDept[k].push({ id: doc.id, name: d.name, email: d.email, deptName: deptMap[k] || k });
+         });
+         facSnap.forEach(doc => {
+           const d = doc.data();
+           const k = d.department || '';
+           facultyByDept[k] = (facultyByDept[k] || []);
+           facultyByDept[k].push({ id: doc.id, name: d.name, email: d.email, deptName: deptMap[k] || k });
+         });
+         subSnap.forEach(doc => {
+           const d = doc.data();
+           const k = d.departmentId || '';
+           subjectDeptCounts[k] = (subjectDeptCounts[k] || 0) + 1;
+         });
+         accordion.innerHTML = '';
+         deptSnap.forEach(doc => {
+           const d = doc.data();
+           const deptId = doc.id;
+           const students = studentsByDept[deptId] || [];
+           const faculty = facultyByDept[deptId] || [];
+           const subCount = subjectDeptCounts[deptId] || 0;
+           studentDept.innerHTML += `<option value="${doc.id}">${d.name}</option>`;
+           facultyDept.innerHTML += `<option value="${doc.id}">${d.name}</option>`;
+           filterDept.innerHTML += `<option value="${doc.id}">${d.name}</option>`;
+           const item = document.createElement('div');
+           item.className = 'dept-item';
+           item.innerHTML = `
+             <div class="dept-header" onclick="toggleDept(this)">
+               <strong>${d.name}</strong>
+               <div class="badges">
+                 <span class="badge green">${students.length} Students</span>
+                 <span class="badge purple">${faculty.length} Faculty</span>
+                 <span class="badge">${subCount} Subjects</span>
+               </div>
+             </div>
+             <div class="dept-body">
+               <div style="margin-bottom:10px;"><strong>Students</strong>
+                 <table><thead><tr><th>Name</th><th>Email</th></tr></thead>
+                 <tbody>${students.length === 0 ? '<tr><td colspan="2" class="empty">None</td></tr>' : students.map(s => `<tr><td>${s.name}</td><td>${s.email}</td></tr>`).join('')}</tbody></table>
+               </div>
+               <div style="margin-bottom:10px;"><strong>Faculty</strong>
+                 <table><thead><tr><th>Name</th><th>Email</th></tr></thead>
+                 <tbody>${faculty.length === 0 ? '<tr><td colspan="2" class="empty">None</td></tr>' : faculty.map(f => `<tr><td>${f.name}</td><td>${f.email}</td></tr>`).join('')}</tbody></table>
+               </div>
+               <div><strong>Subjects</strong>
+                 <table><thead><tr><th>Total Subjects</th></tr></thead>
+                 <tbody><tr><td>${subCount}</td></tr></tbody></table>
+               </div>
+             </div>
+           `;
+           accordion.appendChild(item);
+         });
+       } catch (err) {
+         console.error(err);
+       }
+     }
+
+    function toggleDept(header) {
+      const body = header.nextElementSibling;
+      body.classList.toggle('open');
+    }
+
+    async function updateStats() {
+      try {
+        const [sSnap, fSnap, subSnap, dSnap] = await Promise.all([
+          db.collection('students').get(),
+          db.collection('faculty').get(),
+          db.collection('subjects').get(),
+          db.collection('departments').get()
+        ]);
+        document.getElementById('totalStudents').textContent = sSnap.size;
+        document.getElementById('totalFaculty').textContent = fSnap.size;
+        document.getElementById('totalSubjects').textContent = subSnap.size;
+        document.getElementById('totalDepts').textContent = dSnap.size;
+      } catch (err) {}
+    }
+
+    document.getElementById('addDepartmentForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById('deptMsg');
+      const name = document.getElementById('deptName').value.trim();
+      try {
+        const snap = await db.collection('departments').where('name', '==', name).get();
+        if (!snap.empty) {
+          msg.textContent = 'Department already exists!';
+          msg.className = 'msg error';
+          msg.style.display = 'block';
+          return;
+        }
+        await db.collection('departments').add({ name, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+        msg.textContent = 'Department added successfully!';
+        msg.className = 'msg success';
+        msg.style.display = 'block';
+        document.getElementById('addDepartmentForm').reset();
+        loadDepartments();
+        updateStats();
+      } catch (err) {
+        msg.textContent = 'Error: ' + err.message;
+        msg.className = 'msg error';
+        msg.style.display = 'block';
+      }
+    });
+
+    document.getElementById('addStudentForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById('studentMsg');
+      const student = {
+        name: document.getElementById('name').value.trim(),
+        email: document.getElementById('email').value.trim().toLowerCase(),
+        password: document.getElementById('password').value.trim(),
+        dept: document.getElementById('studentDept').value,
+        faceRegistered: false,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      try {
+        const snap = await db.collection('students').where('email', '==', student.email).get();
+        if (!snap.empty) {
+          msg.textContent = 'Email already exists!';
+          msg.className = 'msg error';
+          msg.style.display = 'block';
+          return;
+        }
+        await db.collection('students').add(student);
+        msg.textContent = 'Student added successfully!';
+        msg.className = 'msg success';
+        msg.style.display = 'block';
+        document.getElementById('addStudentForm').reset();
+        updateStats();
+      } catch (err) {
+        msg.textContent = 'Error: ' + err.message;
+        msg.className = 'msg error';
+        msg.style.display = 'block';
+      }
+    });
+
+    document.getElementById('addFacultyForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById('facultyMsg');
+      const faculty = {
+        name: document.getElementById('facultyName').value.trim(),
+        email: document.getElementById('facultyEmail').value.trim().toLowerCase(),
+        password: document.getElementById('facultyPassword').value.trim(),
+        department: document.getElementById('facultyDept').value,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      try {
+        const snap = await db.collection('faculty').where('email', '==', faculty.email).get();
+        if (!snap.empty) {
+          msg.textContent = 'Email already exists!';
+          msg.className = 'msg error';
+          msg.style.display = 'block';
+          return;
+        }
+        await db.collection('faculty').add(faculty);
+        msg.textContent = 'Faculty added successfully!';
+        msg.className = 'msg success';
+        msg.style.display = 'block';
+        document.getElementById('addFacultyForm').reset();
+        loadDepartments();
+        updateStats();
+      } catch (err) {
+        msg.textContent = 'Error: ' + err.message;
+        msg.className = 'msg error';
+        msg.style.display = 'block';
+      }
+    });
+
+    document.getElementById('addSubjectForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById('subjectMsg');
+      const subject = {
+        subjectName: document.getElementById('subjectName').value.trim(),
+        subjectCode: document.getElementById('subjectCode').value.trim(),
+        facultyId: document.getElementById('subjectFaculty').value,
+        departmentId: document.getElementById('subjectDept').value,
+        studentIds: []
+      };
+      try {
+        await db.collection('subjects').add(subject);
+        msg.textContent = 'Subject created successfully!';
+        msg.className = 'msg success';
+        msg.style.display = 'block';
+        document.getElementById('addSubjectForm').reset();
+        loadFacultyOptions();
+        updateStats();
+      } catch (err) {
+        msg.textContent = 'Error: ' + err.message;
+        msg.className = 'msg error';
+        msg.style.display = 'block';
+      }
+    });
+
+    document.getElementById('assignStudentsForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById('assignMsg');
+      const subjectId = document.getElementById('assignSubject').value;
+      const checkboxes = document.querySelectorAll('#studentCheckboxes input:checked');
+      const studentIds = Array.from(checkboxes).map(cb => cb.value);
+      try {
+        await db.collection('subjects').doc(subjectId).update({ studentIds });
+        msg.textContent = 'Students assigned successfully!';
+        msg.className = 'msg success';
+        msg.style.display = 'block';
+        updateStats();
+      } catch (err) {
+        msg.textContent = 'Error: ' + err.message;
+        msg.className = 'msg error';
+        msg.style.display = 'block';
+      }
+    });
+
+    async function saveSettings(e) {
+      e.preventDefault();
+      const msg = document.getElementById('settingsMsg');
+      const threshold = parseInt(document.getElementById('distanceThreshold').value);
+      try {
+        await db.collection('settings').doc('attendance').set({ distanceThreshold: threshold, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+        msg.textContent = 'Settings saved!';
+        msg.className = 'msg success';
+        msg.style.display = 'block';
+        setTimeout(() => { msg.style.display = 'none'; }, 2000);
+      } catch (err) {
+        msg.textContent = 'Error: ' + err.message;
+        msg.className = 'msg error';
+        msg.style.display = 'block';
+      }
+    }
+
+    async function loadSettings() {
+      try {
+        const snap = await db.collection('settings').doc('attendance').get();
+        if (snap.exists) {
+          document.getElementById('distanceThreshold').value = snap.data().distanceThreshold || 10;
+        } else {
+        document.getElementById('distanceThreshold').value = 10;
+        }
+      } catch (err) {
+        document.getElementById('distanceThreshold').value = 10;
+      }
+    }
+
+    document.getElementById('settingsForm').addEventListener('submit', saveSettings);
+
+    loadFacultyOptions();
+    loadDepartments();
+    loadSettings();
+    updateStats();
+    renderListing();
+  </script>
+</body>
+</html>
